@@ -10,7 +10,12 @@ const store = useStudentStore()
 const form = reactive({
   name: "",
   studentNo: "",
-  className: "",
+  grade: "",
+  department: "",
+  major: "",
+  classes: "",
+  courses: "",
+  tags: "",
   note: "",
 })
 
@@ -18,10 +23,22 @@ watch(visible, (isVisible) => {
   if (!isVisible) {
     form.name = ""
     form.studentNo = ""
-    form.className = ""
+    form.grade = ""
+    form.department = ""
+    form.major = ""
+    form.classes = ""
+    form.courses = ""
+    form.tags = ""
     form.note = ""
   }
 })
+
+function splitInput(value: string): string[] {
+  return value
+    .split(/[、,，/|；;]+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
 
 function submit(): void {
   if (!form.name.trim()) {
@@ -29,19 +46,31 @@ function submit(): void {
     return
   }
 
-  const duplicate = store.students.value.some((student) => student.name === form.name.trim())
-  if (duplicate) {
-    ElMessage.warning("名单中已经存在该学生")
+  const result = store.mergeStudentDrafts([{
+    name: form.name,
+    studentNo: form.studentNo,
+    grade: form.grade,
+    department: form.department,
+    major: form.major,
+    classes: splitInput(form.classes),
+    courses: splitInput(form.courses),
+    tags: splitInput(form.tags),
+    note: form.note,
+  }])
+
+  if (result.conflictRows.length || result.skippedRows.length) {
+    ElMessage.warning(result.conflictRows[0] ?? result.skippedRows[0])
     return
   }
 
-  store.addStudent({
-    name: form.name,
-    studentNo: form.studentNo,
-    className: form.className,
-    note: form.note,
-  })
-  ElMessage.success("添加成功")
+  if (result.students.length > 0) {
+    ElMessage.success("添加成功")
+  } else if (result.mergedCount > 0) {
+    ElMessage.success("已合并到现有学生档案")
+  } else {
+    ElMessage.info("学生信息没有变化")
+  }
+
   visible.value = false
 }
 </script>
@@ -62,8 +91,23 @@ function submit(): void {
       <el-form-item label="学号（可选）">
         <el-input v-model="form.studentNo" placeholder="例如：20260001" clearable />
       </el-form-item>
+      <el-form-item label="年级（可选）">
+        <el-input v-model="form.grade" placeholder="例如：2026级" clearable />
+      </el-form-item>
+      <el-form-item label="院系（可选）">
+        <el-input v-model="form.department" placeholder="例如：信息工程学院" clearable />
+      </el-form-item>
+      <el-form-item label="专业（可选）">
+        <el-input v-model="form.major" placeholder="例如：软件工程" clearable />
+      </el-form-item>
       <el-form-item label="班级（可选）">
-        <el-input v-model="form.className" placeholder="例如：软件1班" clearable />
+        <el-input v-model="form.classes" placeholder="多个可用顿号分隔，例如：软件1班、数据结构1班" clearable />
+      </el-form-item>
+      <el-form-item label="课程（可选）">
+        <el-input v-model="form.courses" placeholder="多个可用顿号分隔，例如：数据结构、高等数学" clearable />
+      </el-form-item>
+      <el-form-item label="标签（可选）">
+        <el-input v-model="form.tags" placeholder="例如：一组、班委" clearable />
       </el-form-item>
       <el-form-item label="备注（可选）">
         <el-input v-model="form.note" placeholder="可填写小组、职责等信息" clearable />

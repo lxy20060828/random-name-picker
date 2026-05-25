@@ -27,6 +27,10 @@ function exportStudents(): void {
   ElMessage.success("名单已导出")
 }
 
+function studentLabel(student: { name: string; studentNo: string; grade?: string; major?: string; classes: string[] }): string {
+  return [student.studentNo, student.grade, student.major, student.classes[0]].filter(Boolean).join(" · ")
+}
+
 function deleteRecord(id: string): void {
   store.deleteHistoryRecord(id)
   ElMessage.success("点名记录已删除")
@@ -81,7 +85,9 @@ function deleteRecord(id: string): void {
         </div>
 
         <div v-if="unpickedStudents.length" class="chip-wrap align-start">
-          <span v-for="student in unpickedStudents" :key="student.id" class="chip">{{ student.name }}</span>
+          <span v-for="student in unpickedStudents" :key="student.id" class="chip" :title="studentLabel(student)">
+            {{ student.name }}
+          </span>
         </div>
         <el-empty v-else description="所有学生都已经被点到过" />
       </section>

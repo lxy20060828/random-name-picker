@@ -6,6 +6,7 @@ import type { ImportParseResult } from "@/types"
 import { useStudentStore } from "@/composables/useStudentStore"
 import { createStudentTemplateWorkbook, parseStudentImport, parseStudentText } from "@/utils/importStudents"
 import { downloadBlobFile } from "@/utils/download"
+import { mergeStudentDraftsWithExisting } from "@/utils/studentMerge"
 
 const visible = defineModel<boolean>({ required: true })
 const store = useStudentStore()
@@ -16,6 +17,10 @@ const parsing = ref(false)
 
 const previewNames = computed(() => parseResult.value?.students.slice(0, 8).map((student) => student.name) ?? [])
 const canImport = computed(() => (parseResult.value?.students.length ?? 0) > 0)
+const previewMerge = computed(() => {
+  if (!parseResult.value) return null
+  return mergeStudentDraftsWithExisting(store.students.value, parseResult.value.students)
+})
 
 watch(text, (value) => {
   if (!value.trim()) {
@@ -58,8 +63,13 @@ function submit(): void {
     return
   }
 
-  const count = store.addStudents(parseResult.value.students)
-  ElMessage.success(`成功导入 ${count} 名学生`)
+  const mergeResult = store.mergeStudentDrafts(parseResult.value.students)
+  const message = `新增 ${mergeResult.students.length} 人，合并 ${mergeResult.mergedCount} 人，未变化 ${mergeResult.unchangedCount} 人`
+  if (mergeResult.conflictRows.length || mergeResult.skippedRows.length) {
+    ElMessage.warning(`${message}，有 ${mergeResult.conflictRows.length + mergeResult.skippedRows.length} 条需检查`)
+  } else {
+    ElMessage.success(message)
+  }
   visible.value = false
 }
 
@@ -78,7 +88,7 @@ function downloadTemplate(): void {
     </template>
 
     <div class="import-helper">
-      <p>支持 Excel、CSV、TXT。推荐 Excel 表头：姓名、学号、班级、备注；仅姓名必填。</p>
+      <p>支持 Excel、CSV、TXT。推荐表头：姓名、学号、年级、院系、专业、班级、课程、标签；仅姓名必填。</p>
       <el-button class="outline-button" size="small" :icon="Download" @click="downloadTemplate">
         下载模板
       </el-button>
@@ -104,7 +114,7 @@ function downloadTemplate(): void {
       class="import-textarea"
       type="textarea"
       :rows="7"
-      placeholder="也可以直接粘贴名单：&#10;张三&#10;李四&#10;王五&#10;&#10;或：姓名,学号,班级&#10;张三,20260001,软件1班"
+      placeholder="也可以直接粘贴名单：&#10;张三&#10;李四&#10;王五&#10;&#10;或：姓名,学号,年级,院系,专业,班级,课程,标签&#10;张三,20260001,2026级,信息工程学院,软件工程,软件1班,数据结构,一组"
     />
 
     <div v-if="parsing" class="status-line">正在解析文件...</div>
@@ -115,8 +125,18 @@ function downloadTemplate(): void {
       </div>
       <div class="muted">
         姓名列：{{ parseResult.detectedNameColumn || "未识别" }}；
+        推断字段 {{ parseResult.inferredFields.length }} 个；
         重复跳过 {{ parseResult.duplicateNames.length }} 条；
         无效行 {{ parseResult.skippedRows.length }} 条
+      </div>
+      <div v-if="previewMerge" class="muted">
+        预计新增 {{ previewMerge.students.length }} 人；
+        合并 {{ previewMerge.mergedCount }} 人；
+        未变化 {{ previewMerge.unchangedCount }} 人；
+        需检查 {{ previewMerge.conflictRows.length + previewMerge.skippedRows.length }} 条
+      </div>
+      <div v-if="parseResult.inferredFields.length" class="muted">
+        已从文件名或工作表名推断：{{ parseResult.inferredFields.join("，") }}
       </div>
       <div v-if="previewNames.length" class="name-preview">
         <span v-for="name in previewNames" :key="name">{{ name }}</span>
@@ -128,6 +148,13 @@ function downloadTemplate(): void {
         :closable="false"
         show-icon
         :title="parseResult.skippedRows.slice(0, 3).join('；')"
+      />
+      <el-alert
+        v-if="previewMerge?.conflictRows.length"
+        type="warning"
+        :closable="false"
+        show-icon
+        :title="previewMerge.conflictRows.slice(0, 3).join('；')"
       />
     </div>
 

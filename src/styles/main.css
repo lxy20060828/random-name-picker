@@ -163,6 +163,14 @@ a {
   align-items: center;
 }
 
+.wheel-scope {
+  align-self: stretch;
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+}
+
 .wheel {
   position: relative;
   width: min(420px, 100%);
@@ -363,6 +371,31 @@ a {
 
 .search-input {
   margin-bottom: 14px;
+}
+
+.student-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.select-empty-text {
+  display: block;
+  padding: 6px 0;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.filter-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .empty-state {
@@ -771,6 +804,10 @@ a {
   }
 
   .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .student-filter-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 

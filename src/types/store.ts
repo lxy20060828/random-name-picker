@@ -1,15 +1,19 @@
 import type { ComputedRef, Ref } from "vue"
-import type { PickHistory, Student, StudentDraft } from "@/types"
+import type { FilterOptions, ImportParseResult, PickHistory, Student, StudentDraft, StudentFilters } from "@/types"
 
 export interface StudentStore {
   students: Ref<Student[]>
+  filteredStudents: ComputedRef<Student[]>
   history: Ref<PickHistory[]>
   selectedStudent: Ref<Student | null>
+  filters: Ref<StudentFilters>
+  filterOptions: ComputedRef<FilterOptions>
+  activeFilterSummary: ComputedRef<string>
   studentCount: ComputedRef<number>
   totalPickCount: ComputedRef<number>
   mostPickedStudents: ComputedRef<Student[]>
   addStudent: (draft: StudentDraft) => void
-  addStudents: (drafts: StudentDraft[]) => number
+  mergeStudentDrafts: (drafts: StudentDraft[]) => ImportParseResult
   updateStudent: (id: string, draft: StudentDraft) => void
   deleteStudent: (id: string) => void
   clearStudents: () => void
@@ -18,4 +22,6 @@ export interface StudentStore {
   deleteHistoryRecord: (id: string) => void
   pickOne: () => Student | null
   recordPick: (student: Student) => PickHistory
+  setFilters: (value: StudentFilters) => void
+  resetFilters: () => void
 }

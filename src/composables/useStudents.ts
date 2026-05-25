@@ -1,7 +1,10 @@
 import { computed, onMounted, ref, watch } from "vue"
-import type { PickHistory, Student, StudentDraft } from "@/types"
+import type { FilterOptions, ImportParseResult, PickHistory, Student, StudentDraft, StudentFilters } from "@/types"
+import { resolveGrade } from "@/utils/gradeInference"
 import { createId } from "@/utils/id"
 import { pickRandomStudent } from "@/utils/random"
+import { describeFilters, EMPTY_FILTERS, filterStudents, getFilterOptions, sanitizeFilters } from "@/utils/studentFilters"
+import { createStudentFromDraft, mergeStudentDraftsWithExisting, normalizeList, normalizeStudent, type LegacyStudent } from "@/utils/studentMerge"
 
 const STUDENTS_KEY = "random-picker-vue3-students"
 const HISTORY_KEY = "random-picker-vue3-history"
@@ -20,27 +23,17 @@ function nowIso(): string {
   return new Date().toISOString()
 }
 
-function createStudent(draft: StudentDraft): Student {
-  const currentTime = nowIso()
-  return {
-    id: createId("student"),
-    name: draft.name.trim(),
-    studentNo: draft.studentNo?.trim() || undefined,
-    className: draft.className?.trim() || undefined,
-    note: draft.note?.trim() || undefined,
-    pickCount: 0,
-    createdAt: currentTime,
-    updatedAt: currentTime,
-  }
-}
-
 export function useStudents() {
   const students = ref<Student[]>([])
   const history = ref<PickHistory[]>([])
   const selectedStudent = ref<Student | null>(null)
+  const filters = ref<StudentFilters>({ ...EMPTY_FILTERS })
   const isLoaded = ref(false)
 
   const studentCount = computed(() => students.value.length)
+  const filteredStudents = computed(() => filterStudents(students.value, filters.value))
+  const filterOptions = computed<FilterOptions>(() => getFilterOptions(students.value))
+  const activeFilterSummary = computed(() => describeFilters(filters.value, filteredStudents.value.length))
   const totalPickCount = computed(() => history.value.length)
   const mostPickedStudents = computed(() =>
     [...students.value]
@@ -50,9 +43,11 @@ export function useStudents() {
   )
 
   onMounted(() => {
-    students.value = readStorage<Student[]>(STUDENTS_KEY, [])
+    const normalizedStudents = readStorage<LegacyStudent[]>(STUDENTS_KEY, []).map((student) => normalizeStudent(student))
+    students.value = normalizedStudents
     history.value = readStorage<PickHistory[]>(HISTORY_KEY, [])
     isLoaded.value = true
+    localStorage.setItem(STUDENTS_KEY, JSON.stringify(normalizedStudents))
   })
 
   watch(
@@ -60,6 +55,17 @@ export function useStudents() {
     (value) => {
       if (!isLoaded.value) return
       localStorage.setItem(STUDENTS_KEY, JSON.stringify(value))
+    },
+    { deep: true },
+  )
+
+  watch(
+    filterOptions,
+    (options) => {
+      const sanitized = sanitizeFilters(filters.value, options)
+      if (JSON.stringify(sanitized) !== JSON.stringify(filters.value)) {
+        filters.value = sanitized
+      }
     },
     { deep: true },
   )
@@ -75,26 +81,31 @@ export function useStudents() {
 
   function addStudent(draft: StudentDraft): void {
     if (!draft.name.trim()) return
-    students.value.push(createStudent(draft))
+    students.value.push(createStudentFromDraft(draft))
   }
 
-  function addStudents(drafts: StudentDraft[]): number {
-    const newStudents = drafts.map(createStudent)
-    students.value = [...students.value, ...newStudents]
-    return newStudents.length
+  function mergeStudentDrafts(drafts: StudentDraft[]): ImportParseResult {
+    const result = mergeStudentDraftsWithExisting(students.value, drafts)
+    students.value = result.nextStudents
+    return result
   }
 
   function updateStudent(id: string, draft: StudentDraft): void {
     students.value = students.value.map((student) =>
       student.id === id
-        ? {
+        ? normalizeStudent({
             ...student,
             name: draft.name.trim(),
-            studentNo: draft.studentNo?.trim() || undefined,
-            className: draft.className?.trim() || undefined,
+            studentNo: draft.studentNo?.trim() || "",
+            grade: resolveGrade(draft.grade, normalizeList(draft.classes)),
+            department: draft.department?.trim() || undefined,
+            major: draft.major?.trim() || undefined,
+            classes: normalizeList(draft.classes),
+            courses: normalizeList(draft.courses),
+            tags: normalizeList(draft.tags),
             note: draft.note?.trim() || undefined,
             updatedAt: nowIso(),
-          }
+          })
         : student,
     )
   }
@@ -167,22 +178,34 @@ export function useStudents() {
   }
 
   function pickOne(): Student | null {
-    const student = pickRandomStudent(students.value)
+    const student = pickRandomStudent(filteredStudents.value)
     if (!student) return null
 
     selectedStudent.value = student
     return student
   }
 
+  function setFilters(value: StudentFilters): void {
+    filters.value = sanitizeFilters({ ...value }, filterOptions.value)
+  }
+
+  function resetFilters(): void {
+    filters.value = { ...EMPTY_FILTERS }
+  }
+
   return {
     students,
+    filteredStudents,
     history,
     selectedStudent,
+    filters,
+    filterOptions,
+    activeFilterSummary,
     studentCount,
     totalPickCount,
     mostPickedStudents,
     addStudent,
-    addStudents,
+    mergeStudentDrafts,
     updateStudent,
     deleteStudent,
     clearStudents,
@@ -191,5 +214,7 @@ export function useStudents() {
     deleteHistoryRecord,
     pickOne,
     recordPick,
+    setFilters,
+    resetFilters,
   }
 }

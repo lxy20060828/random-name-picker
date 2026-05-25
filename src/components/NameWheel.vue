@@ -8,6 +8,7 @@ import { pickRandomStudent } from "@/utils/random"
 const props = defineProps<{
   students: Student[]
   selectedStudent: Student | null
+  scopeLabel: string
 }>()
 
 const emit = defineEmits<{
@@ -67,6 +68,7 @@ function startPick(): void {
 
 <template>
   <section class="panel wheel-panel">
+    <div class="wheel-scope">{{ scopeLabel }}</div>
     <div class="wheel">
       <div class="ring ring-outer" />
       <div class="ring ring-middle" />

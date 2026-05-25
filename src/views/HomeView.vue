@@ -46,18 +46,20 @@ function handleResetPickCounts(): void {
   <main class="container page-grid">
     <div class="main-column">
       <NameWheel
-        :students="store.students.value"
+        :students="store.filteredStudents.value"
         :selected-student="store.selectedStudent.value"
+        :scope-label="store.activeFilterSummary.value"
         @preview="store.selectedStudent.value = $event"
         @picked="handlePicked"
       />
-      <StatsPanel :students="store.students.value" :history="store.history.value" />
+      <StatsPanel :students="store.filteredStudents.value" :history="store.history.value" />
     </div>
 
     <aside class="side-column">
       <DailyQuoteCard />
       <StudentList
-        :students="store.students.value"
+        :students="store.filteredStudents.value"
+        :total-count="store.students.value.length"
         @clear-students="store.clearStudents"
         @delete="handleDeleteStudent"
         @update="store.updateStudent"

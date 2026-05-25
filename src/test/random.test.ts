@@ -6,6 +6,10 @@ const students: Student[] = [
   {
     id: "student-1",
     name: "张三",
+    studentNo: "20260001",
+    classes: [],
+    courses: [],
+    tags: [],
     pickCount: 0,
     createdAt: "2026-06-01T00:00:00.000Z",
     updatedAt: "2026-06-01T00:00:00.000Z",
@@ -13,6 +17,10 @@ const students: Student[] = [
   {
     id: "student-2",
     name: "李四",
+    studentNo: "20260002",
+    classes: [],
+    courses: [],
+    tags: [],
     pickCount: 0,
     createdAt: "2026-06-01T00:00:00.000Z",
     updatedAt: "2026-06-01T00:00:00.000Z",

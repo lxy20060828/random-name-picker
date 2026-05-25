@@ -23,7 +23,7 @@ const topStudents = computed(() =>
     <div class="panel-title">
       <span>
         <el-icon><DataAnalysis /></el-icon>
-        数据统计
+        当前范围统计
       </span>
     </div>
 
