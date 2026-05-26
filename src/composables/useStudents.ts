@@ -4,11 +4,18 @@ import { resolveGrade } from "@/utils/gradeInference"
 import { createId } from "@/utils/id"
 import { pickRandomStudent } from "@/utils/random"
 import { describeFilters, EMPTY_FILTERS, filterStudents, getFilterOptions, sanitizeFilters } from "@/utils/studentFilters"
-import { createStudentFromDraft, mergeStudentDraftsWithExisting, normalizeList, normalizeStudent, type LegacyStudent } from "@/utils/studentMerge"
+import { removeOrphanHistory, syncPickCountsFromHistory } from "@/utils/studentStats"
+import {
+  createStudentFromDraft,
+  mergeStudentDraftsWithExisting,
+  mergeStudentProfiles,
+  normalizeList,
+  normalizeStudent,
+  type LegacyStudent,
+} from "@/utils/studentMerge"
 
 const STUDENTS_KEY = "random-picker-vue3-students"
 const HISTORY_KEY = "random-picker-vue3-history"
-const MAX_HISTORY = 100
 
 function readStorage<T>(key: string, fallback: T): T {
   try {
@@ -43,11 +50,14 @@ export function useStudents() {
   )
 
   onMounted(() => {
-    const normalizedStudents = readStorage<LegacyStudent[]>(STUDENTS_KEY, []).map((student) => normalizeStudent(student))
+    const loadedStudents = readStorage<LegacyStudent[]>(STUDENTS_KEY, []).map((student) => normalizeStudent(student))
+    const loadedHistory = removeOrphanHistory(readStorage<PickHistory[]>(HISTORY_KEY, []), loadedStudents)
+    const normalizedStudents = syncPickCountsFromHistory(loadedStudents, loadedHistory)
     students.value = normalizedStudents
-    history.value = readStorage<PickHistory[]>(HISTORY_KEY, [])
+    history.value = loadedHistory
     isLoaded.value = true
     localStorage.setItem(STUDENTS_KEY, JSON.stringify(normalizedStudents))
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(loadedHistory))
   })
 
   watch(
@@ -86,7 +96,7 @@ export function useStudents() {
 
   function mergeStudentDrafts(drafts: StudentDraft[]): ImportParseResult {
     const result = mergeStudentDraftsWithExisting(students.value, drafts)
-    students.value = result.nextStudents
+    students.value = syncPickCountsFromHistory(result.nextStudents, history.value)
     return result
   }
 
@@ -110,8 +120,63 @@ export function useStudents() {
     )
   }
 
+  function findStudentNoConflict(id: string, studentNo: string): Student | undefined {
+    const normalizedStudentNo = studentNo.trim()
+    if (!normalizedStudentNo) return undefined
+
+    return students.value.find((student) => student.id !== id && student.studentNo === normalizedStudentNo)
+  }
+
+  function mergeStudentWithExistingNumber(id: string, draft: StudentDraft): void {
+    const source = students.value.find((student) => student.id === id)
+    if (!source) return
+
+    const target = findStudentNoConflict(id, draft.studentNo ?? "")
+    if (!target) {
+      updateStudent(id, draft)
+      return
+    }
+
+    const incoming = normalizeStudent({
+      ...source,
+      name: draft.name.trim() || source.name,
+      studentNo: draft.studentNo?.trim() || source.studentNo,
+      grade: resolveGrade(draft.grade, normalizeList(draft.classes)),
+      department: draft.department?.trim() || undefined,
+      major: draft.major?.trim() || undefined,
+      classes: normalizeList(draft.classes),
+      courses: normalizeList(draft.courses),
+      tags: normalizeList(draft.tags),
+      note: draft.note?.trim() || undefined,
+      updatedAt: nowIso(),
+    })
+    const mergedTarget = mergeStudentProfiles(target, incoming)
+    const migratedHistory = history.value.map((record) =>
+      record.studentId === source.id
+        ? {
+            ...record,
+            studentId: target.id,
+            studentName: mergedTarget.name,
+          }
+        : record,
+    )
+    const nextStudents = students.value
+      .filter((student) => student.id !== source.id)
+      .map((student) => (student.id === target.id ? mergedTarget : student))
+
+    history.value = migratedHistory
+    students.value = syncPickCountsFromHistory(nextStudents, migratedHistory)
+
+    if (selectedStudent.value?.id === source.id || selectedStudent.value?.id === target.id) {
+      selectedStudent.value = students.value.find((student) => student.id === target.id) ?? null
+    }
+  }
+
   function deleteStudent(id: string): void {
-    students.value = students.value.filter((student) => student.id !== id)
+    const nextStudents = students.value.filter((student) => student.id !== id)
+    const nextHistory = removeOrphanHistory(history.value, nextStudents)
+    students.value = syncPickCountsFromHistory(nextStudents, nextHistory)
+    history.value = nextHistory
     if (selectedStudent.value?.id === id) {
       selectedStudent.value = null
     }
@@ -119,20 +184,30 @@ export function useStudents() {
 
   function clearStudents(): void {
     students.value = []
+    history.value = []
     selectedStudent.value = null
+    filters.value = { ...EMPTY_FILTERS }
     localStorage.removeItem(STUDENTS_KEY)
+    localStorage.removeItem(HISTORY_KEY)
   }
 
   function resetPickCounts(): void {
+    history.value = []
     students.value = students.value.map((student) => ({
       ...student,
       pickCount: 0,
       updatedAt: nowIso(),
     }))
+    localStorage.removeItem(HISTORY_KEY)
   }
 
   function clearHistory(): void {
     history.value = []
+    students.value = students.value.map((student) => ({
+      ...student,
+      pickCount: 0,
+      updatedAt: nowIso(),
+    }))
     localStorage.removeItem(HISTORY_KEY)
   }
 
@@ -140,16 +215,9 @@ export function useStudents() {
     const record = history.value.find((item) => item.id === id)
     if (!record) return
 
-    history.value = history.value.filter((item) => item.id !== id)
-    students.value = students.value.map((student) =>
-      student.id === record.studentId
-        ? {
-            ...student,
-            pickCount: Math.max(student.pickCount - 1, 0),
-            updatedAt: nowIso(),
-          }
-        : student,
-    )
+    const nextHistory = history.value.filter((item) => item.id !== id)
+    history.value = nextHistory
+    students.value = syncPickCountsFromHistory(students.value, nextHistory)
   }
 
   function recordPick(student: Student): PickHistory {
@@ -160,15 +228,10 @@ export function useStudents() {
       pickedAt: nowIso(),
     }
 
-    history.value = [record, ...history.value].slice(0, MAX_HISTORY)
-    students.value = students.value.map((item) =>
-      item.id === student.id
-        ? {
-            ...item,
-            pickCount: item.pickCount + 1,
-            updatedAt: nowIso(),
-          }
-        : item,
+    history.value = [record, ...history.value]
+    students.value = syncPickCountsFromHistory(
+      students.value.map((item) => (item.id === student.id ? { ...item, updatedAt: nowIso() } : item)),
+      history.value,
     )
 
     const updated = students.value.find((item) => item.id === student.id)
@@ -207,6 +270,8 @@ export function useStudents() {
     addStudent,
     mergeStudentDrafts,
     updateStudent,
+    findStudentNoConflict,
+    mergeStudentWithExistingNumber,
     deleteStudent,
     clearStudents,
     resetPickCounts,

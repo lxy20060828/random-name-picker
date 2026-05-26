@@ -73,8 +73,8 @@ function submit(): void {
   visible.value = false
 }
 
-function downloadTemplate(): void {
-  downloadBlobFile("students_import_template.xlsx", createStudentTemplateWorkbook())
+async function downloadTemplate(): Promise<void> {
+  downloadBlobFile("students_import_template.xlsx", await createStudentTemplateWorkbook())
 }
 </script>
 

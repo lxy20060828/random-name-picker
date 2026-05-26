@@ -29,15 +29,15 @@ function handleDeleteHistoryRecord(id: string): void {
 }
 
 function handleDeleteStudent(id: string): void {
-  if (window.confirm("确定删除该学生吗？")) {
+  if (window.confirm("确定删除该学生吗？关联点名记录也会同步删除。")) {
     store.deleteStudent(id)
   }
 }
 
 function handleResetPickCounts(): void {
-  if (window.confirm("确定重置所有学生的点名次数吗？")) {
+  if (window.confirm("确定清空全部点名历史并重置所有学生的点名次数吗？")) {
     store.resetPickCounts()
-    ElMessage.success("点名次数已重置")
+    ElMessage.success("点名历史已清空，点名次数已重置")
   }
 }
 </script>

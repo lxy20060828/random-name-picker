@@ -16,6 +16,8 @@ const { quote, loading, errorMessage, fetchQuote } = useDailyQuote()
     </div>
     <blockquote>{{ quote.content }}</blockquote>
     <p class="muted">{{ quote.source }}</p>
+    <p v-if="quote.provider === 'tianapi'" class="api-note">TianAPI 名言警句接口</p>
+    <p v-else-if="quote.provider === 'hitokoto'" class="api-note">Hitokoto 兜底接口</p>
     <p v-if="errorMessage" class="api-note">{{ errorMessage }}</p>
   </section>
 </template>

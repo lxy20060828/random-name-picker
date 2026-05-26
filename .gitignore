@@ -8,12 +8,22 @@ __v0_jsx-dev-runtime.ts
 
 # Environment variables
 .env*.local
+.env
+.env.production
 
 # Common ignores
-node_modules
+node_modules/
 .next/
 dist/
 .DS_Store
+*.log
+coverage/
 
-# Local test artifacts
+# 作业提交资料与本地整理产物：GitHub 只上传项目源码
+docs/
+02_界面设计图/
 测试过程文件/
+李馨妍_240110065_随机点名器/
+*.mp4
+*.docx
+*.zip

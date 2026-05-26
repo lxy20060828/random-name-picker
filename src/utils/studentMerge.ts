@@ -43,6 +43,23 @@ export function normalizeStudent(raw: LegacyStudent, options: MergeOptions = {})
   }
 }
 
+export function mergeStudentProfiles(target: Student, incoming: Student, options: MergeOptions = {}): Student {
+  const classes = normalizeList([...target.classes, ...incoming.classes])
+
+  return {
+    ...target,
+    studentNo: target.studentNo || incoming.studentNo,
+    grade: resolveMergedGrade(target, incoming, classes),
+    department: target.department || incoming.department,
+    major: target.major || incoming.major,
+    classes,
+    courses: normalizeList([...target.courses, ...incoming.courses]),
+    tags: normalizeList([...target.tags, ...incoming.tags]),
+    note: target.note || incoming.note,
+    updatedAt: currentIso(options),
+  }
+}
+
 export function createStudentFromDraft(draft: StudentDraft, options: MergeOptions = {}): Student {
   const currentTime = currentIso(options)
   const classes = normalizeList(draft.classes)
@@ -162,26 +179,12 @@ export function mergeStudentDraftsWithExisting(
 
     result.conflictRows.push(...profileConflictMessages(existing, incoming))
 
-    const classes = normalizeList([...existing.classes, ...incoming.classes])
-    const merged: Student = {
-      ...existing,
-      studentNo: existing.studentNo || incoming.studentNo,
-      grade: resolveMergedGrade(existing, incoming, classes),
-      department: existing.department || incoming.department,
-      major: existing.major || incoming.major,
-      classes,
-      courses: normalizeList([...existing.courses, ...incoming.courses]),
-      tags: normalizeList([...existing.tags, ...incoming.tags]),
-      note: existing.note || incoming.note,
-    }
+    const merged = mergeStudentProfiles(existing, incoming, options)
 
     if (isSameProfile(existing, merged)) {
       result.unchangedCount += 1
     } else {
-      result.nextStudents[existingIndex] = {
-        ...merged,
-        updatedAt: currentIso(options),
-      }
+      result.nextStudents[existingIndex] = merged
       result.mergedCount += 1
     }
   }

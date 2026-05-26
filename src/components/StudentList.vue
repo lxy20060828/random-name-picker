@@ -6,6 +6,7 @@ import AddStudentDialog from "@/components/AddStudentDialog.vue"
 import ImportStudentDialog from "@/components/ImportStudentDialog.vue"
 import { useStudentStore } from "@/composables/useStudentStore"
 import type { Student, StudentDraft } from "@/types"
+import { splitListInput } from "@/utils/listInput"
 import { EMPTY_FILTERS } from "@/utils/studentFilters"
 
 const props = defineProps<{
@@ -70,36 +71,41 @@ function openEdit(student: Student): void {
   editVisible.value = true
 }
 
-function splitInput(value: string): string[] {
-  return value
-    .split(/[、,，/|；;]+/)
-    .map((item) => item.trim())
-    .filter(Boolean)
-}
-
 function submitEdit(): void {
   if (!editForm.name.trim()) {
     ElMessage.warning("姓名不能为空")
     return
   }
 
-  emit("update", editingId.value, {
+  const draft: StudentDraft = {
     name: editForm.name,
     studentNo: editForm.studentNo,
     grade: editForm.grade,
     department: editForm.department,
     major: editForm.major,
-    classes: splitInput(editForm.classes),
-    courses: splitInput(editForm.courses),
-    tags: splitInput(editForm.tags),
+    classes: splitListInput(editForm.classes),
+    courses: splitListInput(editForm.courses),
+    tags: splitListInput(editForm.tags),
     note: editForm.note,
-  })
+  }
+  const conflict = store.findStudentNoConflict(editingId.value, draft.studentNo ?? "")
+  if (conflict) {
+    const confirmed = window.confirm(`学号 ${draft.studentNo} 已属于 ${conflict.name}，是否将当前学生合并到该档案？`)
+    if (!confirmed) return
+
+    store.mergeStudentWithExistingNumber(editingId.value, draft)
+    ElMessage.success("已合并到现有学生档案")
+    editVisible.value = false
+    return
+  }
+
+  emit("update", editingId.value, draft)
   ElMessage.success("学生信息已更新")
   editVisible.value = false
 }
 
 function confirmClearStudents(): void {
-  if (window.confirm("确定要清空全部学生名单吗？此操作不会清空点名记录。")) {
+  if (window.confirm("确定要清空全部学生名单吗？点名历史和筛选条件也会同步清空。")) {
     emit("clearStudents")
   }
 }

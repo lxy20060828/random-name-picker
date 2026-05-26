@@ -55,6 +55,7 @@ export interface Quote {
   content: string
   source: string
   fromApi: boolean
+  provider?: "tianapi" | "hitokoto" | "local"
 }
 
 export interface StudentFilters {

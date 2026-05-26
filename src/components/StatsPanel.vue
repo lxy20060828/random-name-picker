@@ -2,20 +2,14 @@
 import { computed } from "vue"
 import { DataAnalysis } from "@element-plus/icons-vue"
 import type { PickHistory, Student } from "@/types"
+import { getScopedStudentStats } from "@/utils/studentStats"
 
 const props = defineProps<{
   students: Student[]
   history: PickHistory[]
 }>()
 
-const pickedStudentCount = computed(() => props.students.filter((student) => student.pickCount > 0).length)
-const averagePickCount = computed(() => {
-  if (props.students.length === 0) return "0.0"
-  return (props.history.length / props.students.length).toFixed(1)
-})
-const topStudents = computed(() =>
-  [...props.students].filter((student) => student.pickCount > 0).sort((a, b) => b.pickCount - a.pickCount).slice(0, 5),
-)
+const scopedStats = computed(() => getScopedStudentStats(props.students, props.history))
 </script>
 
 <template>
@@ -33,21 +27,21 @@ const topStudents = computed(() =>
         <span>学生总数</span>
       </div>
       <div class="stat-item">
-        <b>{{ history.length }}</b>
+        <b>{{ scopedStats.scopedHistory.length }}</b>
         <span>点名次数</span>
       </div>
       <div class="stat-item">
-        <b>{{ pickedStudentCount }}</b>
+        <b>{{ scopedStats.pickedStudentCount }}</b>
         <span>已点人数</span>
       </div>
       <div class="stat-item">
-        <b>{{ averagePickCount }}</b>
+        <b>{{ scopedStats.averagePickCount }}</b>
         <span>人均次数</span>
       </div>
     </div>
 
-    <div v-if="topStudents.length" class="top-list">
-      <div v-for="student in topStudents" :key="student.id" class="top-row">
+    <div v-if="scopedStats.topStudents.length" class="top-list">
+      <div v-for="student in scopedStats.topStudents" :key="student.id" class="top-row">
         <span>{{ student.name }}</span>
         <el-progress :percentage="Math.min(student.pickCount * 10, 100)" :show-text="false" />
         <small>{{ student.pickCount }}次</small>

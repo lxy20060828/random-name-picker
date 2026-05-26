@@ -3,6 +3,7 @@ import { reactive, watch } from "vue"
 import { UserFilled } from "@element-plus/icons-vue"
 import { ElMessage } from "element-plus"
 import { useStudentStore } from "@/composables/useStudentStore"
+import { splitListInput } from "@/utils/listInput"
 
 const visible = defineModel<boolean>({ required: true })
 const store = useStudentStore()
@@ -33,13 +34,6 @@ watch(visible, (isVisible) => {
   }
 })
 
-function splitInput(value: string): string[] {
-  return value
-    .split(/[、,，/|；;]+/)
-    .map((item) => item.trim())
-    .filter(Boolean)
-}
-
 function submit(): void {
   if (!form.name.trim()) {
     ElMessage.warning("请输入学生姓名")
@@ -52,9 +46,9 @@ function submit(): void {
     grade: form.grade,
     department: form.department,
     major: form.major,
-    classes: splitInput(form.classes),
-    courses: splitInput(form.courses),
-    tags: splitInput(form.tags),
+    classes: splitListInput(form.classes),
+    courses: splitListInput(form.courses),
+    tags: splitListInput(form.tags),
     note: form.note,
   }])
 

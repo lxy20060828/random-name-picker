@@ -15,6 +15,8 @@ export interface StudentStore {
   addStudent: (draft: StudentDraft) => void
   mergeStudentDrafts: (drafts: StudentDraft[]) => ImportParseResult
   updateStudent: (id: string, draft: StudentDraft) => void
+  findStudentNoConflict: (id: string, studentNo: string) => Student | undefined
+  mergeStudentWithExistingNumber: (id: string, draft: StudentDraft) => void
   deleteStudent: (id: string) => void
   clearStudents: () => void
   resetPickCounts: () => void

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onUpdated, ref } from "vue"
+import { onBeforeUnmount, ref, watch } from "vue"
 import { Promotion, UserFilled } from "@element-plus/icons-vue"
 import { ElMessage } from "element-plus"
 import type { Student } from "@/types"
@@ -19,16 +19,28 @@ const emit = defineEmits<{
 const isSpinning = ref(false)
 const animationTimer = ref<number | null>(null)
 const previewStudent = ref<Student | null>(null)
-const updatedCount = ref(0)
 
-onUpdated(() => {
-  updatedCount.value += 1
-})
-
-onBeforeUnmount(() => {
+function clearAnimationTimer(): void {
   if (animationTimer.value !== null) {
     window.clearInterval(animationTimer.value)
+    animationTimer.value = null
   }
+}
+
+watch(
+  () => props.students.map((student) => student.id),
+  (ids) => {
+    if (previewStudent.value && !ids.includes(previewStudent.value.id)) {
+      previewStudent.value = null
+      emit("preview", null)
+    }
+  },
+)
+
+onBeforeUnmount(() => {
+  clearAnimationTimer()
+  previewStudent.value = null
+  isSpinning.value = false
 })
 
 function startPick(): void {
@@ -50,9 +62,7 @@ function startPick(): void {
     emit("preview", previewStudent.value)
 
     if (elapsed >= duration) {
-      if (animationTimer.value !== null) {
-        window.clearInterval(animationTimer.value)
-      }
+      clearAnimationTimer()
 
       const finalStudent = pickRandomStudent(props.students)
       isSpinning.value = false
