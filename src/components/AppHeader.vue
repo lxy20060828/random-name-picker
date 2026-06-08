@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { House, List, User } from "@element-plus/icons-vue"
+import { House, List, Promotion, User } from "@element-plus/icons-vue"
 
 defineProps<{
   studentCount: number
@@ -20,6 +20,10 @@ defineProps<{
       <nav class="header-actions" aria-label="主导航">
         <RouterLink class="nav-link" to="/">
           <el-icon><House /></el-icon>
+          首页
+        </RouterLink>
+        <RouterLink class="nav-link" to="/picker">
+          <el-icon><Promotion /></el-icon>
           点名
         </RouterLink>
         <RouterLink class="nav-link" to="/history">

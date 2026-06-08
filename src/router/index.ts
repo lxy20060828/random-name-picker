@@ -1,13 +1,20 @@
 import { createRouter, createWebHashHistory } from "vue-router"
 import HomeView from "@/views/HomeView.vue"
 import HistoryView from "@/views/HistoryView.vue"
+import LandingView from "@/views/LandingView.vue"
 
 const router = createRouter({
   history: createWebHashHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: "/",
-      name: "home",
+      name: "landing",
+      component: LandingView,
+      meta: { title: "首页" },
+    },
+    {
+      path: "/picker",
+      name: "picker",
       component: HomeView,
       meta: { title: "随机点名" },
     },
